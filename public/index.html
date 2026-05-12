@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Atlas AI Agent</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-base:        #080810;
+      --bg-surface:     #0f0f1a;
+      --bg-elevated:    #16162a;
+      --bg-hover:       #1e1e35;
+      --border:         rgba(255,255,255,0.06);
+      --border-focus:   rgba(59,130,246,0.5);
+      --accent:         #3b82f6;
+      --accent-glow:    rgba(59,130,246,0.15);
+      --accent-hover:   #2563eb;
+      --text-primary:   #f0f0f8;
+      --text-secondary: #8888aa;
+      --text-muted:     #555570;
+      --radius-sm:      8px;
+      --radius-md:      12px;
+      --radius-lg:      18px;
+      --transition:     all 0.2s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    body {
+      font-family: 'Inter', 'Segoe UI', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--bg-surface);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-dot {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    header h1 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.3px;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      padding: 3px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .btn {
+      background: transparent;
+      color: var(--text-secondary);
+      border: 1px solid var(--border);
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      transition: var(--transition);
+    }
+
+    .btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: rgba(255,255,255,0.12);
+    }
+
+    .btn.active {
+      background: var(--accent-glow);
+      color: var(--accent);
+      border-color: rgba(59,130,246,0.3);
+    }
+
+    /* ── HISTORY DROPDOWN ── */
+    .history-wrapper {
+      position: relative;
+    }
+
+    .history-dropdown {
+      position: absolute;
+      top: calc(100% + 8px);
+      right: 0;
+      width: 300px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      z-index: 999;
+      overflow: hidden;
+      display: none;
+      flex-direction: column;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+      animation: dropIn 0.18s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .history-dropdown.open { display: flex; }
+
+    @keyframes dropIn {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .history-header {
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .history-list {
+      max-height: 340px;
+      overflow-y: auto;
+    }
+
+    .history-list::-webkit-scrollbar { width: 3px; }
+    .history-list::-webkit-scrollbar-thumb { background: var(--bg-hover); border-radius: 3px; }
+
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: var(--transition);
+      border-bottom: 1px solid var(--border);
+      gap: 8px;
+    }
+
+    .history-item:hover { background: var(--bg-hover); }
+    .history-item:last-child { border-bottom: none; }
+
+    .history-item-text {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .history-item-title {
+      font-size: 13px;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .history-item-date {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .history-delete {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 4px 6px;
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+      flex-shrink: 0;
+      font-family: inherit;
+    }
+
+    .history-delete:hover { color: #ef4444; background: rgba(239,68,68,0.1); }
+
+    .history-empty {
+      padding: 24px 16px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* ── CHAT BOX ── */
+    #chat-box {
+      flex: 1;
+      overflow-y: auto;
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      scroll-behavior: smooth;
+    }
+
+    #chat-box::-webkit-scrollbar { width: 4px; }
+    #chat-box::-webkit-scrollbar-track { background: transparent; }
+    #chat-box::-webkit-scrollbar-thumb { background: var(--bg-elevated); border-radius: 4px; }
+
+    /* ── MESSAGES ── */
+    .message-row {
+      display: flex;
+      gap: 12px;
+      animation: fadeSlideIn 0.25s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .message-row.user { flex-direction: row-reverse; }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .avatar.agent-avatar {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .avatar.user-avatar {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .message {
+      max-width: 68%;
+      padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      font-size: 14px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .message.user {
+      background: var(--accent);
+      color: #fff;
+      border-bottom-right-radius: 5px;
+    }
+
+    .message.agent {
+      background: var(--bg-elevated);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 5px;
+    }
+
+    .tool-badge {
+      font-size: 11px;
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      padding: 4px 12px;
+      border-radius: 20px;
+      align-self: flex-start;
+      border: 1px solid var(--border);
+      animation: fadeSlideIn 0.2s ease;
+    }
+
+    /* ── THINKING ── */
+    .thinking-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      animation: fadeSlideIn 0.25s ease;
+    }
+
+    .thinking-bubble {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      border-bottom-left-radius: 5px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      animation: dotPulse 1.4s infinite ease-in-out;
+    }
+
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes dotPulse {
+      0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+      40%            { transform: scale(1);   opacity: 1; }
+    }
+
+    /* ── MEMORY PANEL ── */
+    .memory-panel {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      padding: 14px 28px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      display: none;
+      flex-shrink: 0;
+    }
+
+    .memory-panel.open { display: block; }
+    .memory-panel h3 { color: var(--text-primary); margin-bottom: 8px; font-size: 13px; font-weight: 500; }
+    .memory-panel ul { padding-left: 16px; }
+    .memory-panel li { margin-bottom: 4px; }
+
+    /* ── PREVIEW BAR ── */
+    #preview-area {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 28px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+      animation: fadeSlideIn 0.2s ease;
+    }
+
+    #image-preview {
+      max-height: 60px;
+      border-radius: var(--radius-sm);
+      display: none;
+      border: 1px solid var(--border);
+    }
+
+    #file-name-label { font-size: 12px; color: var(--text-secondary); flex: 1; }
+
+    #clear-attach-btn {
+      background: transparent;
+      color: var(--text-muted);
+      padding: 4px 8px;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    #clear-attach-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
+
+    /* ── INPUT AREA ── */
+    .input-area {
+      padding: 16px 28px 20px;
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+
+    #add-btn {
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      font-size: 22px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: var(--transition);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: inherit;
+    }
+
+    #add-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+
+    #user-input {
+      flex: 1;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      resize: none;
+      min-height: 44px;
+      max-height: 160px;
+      line-height: 1.6;
+      transition: border-color 0.2s ease;
+    }
+
+    #user-input::placeholder { color: var(--text-muted); }
+    #user-input:focus { border-color: var(--border-focus); }
+
+    #send-btn {
+      background: var(--accent);
+      color: #fff;
+      padding: 0 20px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: var(--transition);
+    }
+
+    #send-btn:hover { background: var(--accent-hover); }
+    #send-btn:active { transform: scale(0.97); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <div class="logo-dot">🤖</div>
+    <h1>Atlas</h1>
+    <span class="status-pill">Powered by Ollama</span>
+  </div>
+  <div class="btn-group">
+    <button class="btn" onclick="newChat()">＋ New Chat</button>
+
+    <!-- History dropdown -->
+    <div class="history-wrapper">
+      <button class="btn" onclick="toggleHistory()">🕘 History</button>
+      <div class="history-dropdown" id="history-dropdown">
+        <div class="history-header">Recent Chats</div>
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </div>
+
+    <button id="voice-toggle" class="btn active" onclick="toggleVoice()">🔊 Voice</button>
+    <button class="btn" onclick="showMemory()">💾 Memory</button>
+    <button class="btn" onclick="clearChat()">🗑 Clear</button>
+    <button class="btn" onclick="clearMemory()">✕ Wipe Memory</button>
+  </div>
+</header>
+
+<div id="chat-box"></div>
+
+<div class="memory-panel" id="memory-panel">
+  <h3>💾 Saved Memories</h3>
+  <ul id="memory-list"></ul>
+</div>
+
+<div id="preview-area">
+  <img id="image-preview" />
+  <span id="file-name-label"></span>
+  <button id="clear-attach-btn" onclick="clearAttachment()">✕</button>
+</div>
+
+<input type="file" id="file-input" accept="image/*,.txt,.md,.js,.json,.py" style="display:none" />
+
+<div class="input-area">
+  <button id="add-btn" onclick="document.getElementById('file-input').click()">+</button>
+  <textarea id="user-input" placeholder="Message Atlas..." rows="1"></textarea>
+  <button id="send-btn" onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+  const chatBox = document.getElementById("chat-box");
+  const userInput = document.getElementById("user-input");
+  let attachedFile = null;
+  let voiceEnabled = true;
+
+  // ── CURRENT CHAT STATE ────────────────────────────────────
+  // each chat has a unique id based on timestamp
+  // messages array stores everything shown on screen
+  let currentChatId = `chat_${Date.now()}`;
+  let currentMessages = []; // { role, text }
+
+  // ── AUTO RESIZE TEXTAREA ──────────────────────────────────
+  userInput.addEventListener("input", () => {
+    userInput.style.height = "auto";
+    userInput.style.height = Math.min(userInput.scrollHeight, 160) + "px";
+  });
+
+  // ── VOICE ─────────────────────────────────────────────────
+  function toggleVoice() {
+    voiceEnabled = !voiceEnabled;
+    const btn = document.getElementById("voice-toggle");
+    btn.textContent = voiceEnabled ? "🔊 Voice" : "🔇 Voice";
+    btn.className = voiceEnabled ? "btn active" : "btn";
+    if (!voiceEnabled) window.speechSynthesis.cancel();
+  }
+
+  function speak(text) {
+    if (!voiceEnabled) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  // ── KEYBOARD ──────────────────────────────────────────────
+  userInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+
+  // ── CLOSE DROPDOWN WHEN CLICKING OUTSIDE ─────────────────
+  document.addEventListener("click", (e) => {
+    const wrapper = document.querySelector(".history-wrapper");
+    if (!wrapper.contains(e.target)) {
+      document.getElementById("history-dropdown").classList.remove("open");
+    }
+  });
+
+  // ── HISTORY DROPDOWN ──────────────────────────────────────
+  async function toggleHistory() {
+    const dropdown = document.getElementById("history-dropdown");
+    const isOpen = dropdown.classList.contains("open");
+
+    if (isOpen) {
+      dropdown.classList.remove("open");
+      return;
+    }
+
+    // load chats from server
+    const res = await fetch("/chats");
+    const data = await res.json();
+    const list = document.getElementById("history-list");
+
+    if (data.chats.length === 0) {
+      list.innerHTML = `<div class="history-empty">No saved chats yet</div>`;
+    } else {
+      list.innerHTML = data.chats.map(c => `
+        <div class="history-item" onclick="loadChat('${c.id}')">
+          <div class="history-item-text">
+            <div class="history-item-title">${c.title}</div>
+            <div class="history-item-date">${new Date(c.createdAt).toLocaleString()}</div>
+          </div>
+          <button class="history-delete" onclick="deleteChat(event, '${c.id}')">✕</button>
+        </div>
+      `).join("");
+    }
+
+    dropdown.classList.add("open");
+  }
+
+  // ── LOAD A PAST CHAT ──────────────────────────────────────
+  async function loadChat(id) {
+    // save current chat first
+    await saveCurrentChat();
+
+    const res = await fetch(`/chats/${id}`);
+    const data = await res.json();
+
+    // reset state
+    currentChatId = data.id;
+    currentMessages = data.messages;
+    chatBox.innerHTML = "";
+
+    // clear agent memory so it starts fresh for this chat
+    await fetch("/clear", { method: "POST" });
+
+    // render all messages
+    data.messages.forEach(m => renderMessage(m.text, m.role));
+
+    document.getElementById("history-dropdown").classList.remove("open");
+  }
+
+  // ── DELETE A CHAT ─────────────────────────────────────────
+  async function deleteChat(e, id) {
+    e.stopPropagation(); // prevent loadChat from firing
+    await fetch(`/chats/${id}`, { method: "DELETE" });
+    await toggleHistory(); // refresh the list
+  }
+
+  // ── SAVE CURRENT CHAT ─────────────────────────────────────
+  async function saveCurrentChat() {
+    if (currentMessages.length === 0) return;
+    await fetch("/savechat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: currentChatId, messages: currentMessages })
+    });
+  }
+
+  // ── NEW CHAT ──────────────────────────────────────────────
+  async function newChat() {
+    await saveCurrentChat();       // save what's on screen
+    await fetch("/clear", { method: "POST" }); // reset agent memory
+
+    currentChatId = `chat_${Date.now()}`;
+    currentMessages = [];
+    chatBox.innerHTML = "";
+    addBadge("New chat started");
+  }
+
+  // ── FILE PICKER ───────────────────────────────────────────
+  document.getElementById("file-input").addEventListener("change", function (e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    attachedFile = file;
+
+    const preview = document.getElementById("image-preview");
+    const label = document.getElementById("file-name-label");
+    const area = document.getElementById("preview-area");
+
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        preview.src = ev.target.result;
+        preview.style.display = "block";
+        label.textContent = file.name;
+        area.style.display = "flex";
+      };
+      reader.readAsDataURL(file);
+    } else {
+      preview.style.display = "none";
+      label.textContent = "📄 " + file.name;
+      area.style.display = "flex";
+    }
+  });
+
+  function clearAttachment() {
+    attachedFile = null;
+    document.getElementById("file-input").value = "";
+    document.getElementById("preview-area").style.display = "none";
+    document.getElementById("image-preview").src = "";
+    document.getElementById("image-preview").style.display = "none";
+    document.getElementById("file-name-label").textContent = "";
+  }
+
+  // ── RENDER A MESSAGE (used for both new and loaded chats) ─
+  function renderMessage(text, role) {
+    const row = document.createElement("div");
+    row.className = `message-row ${role}`;
+
+    const avatar = document.createElement("div");
+    avatar.className = `avatar ${role}-avatar`;
+    avatar.textContent = role === "agent" ? "🤖" : "U";
+
+    const bubble = document.createElement("div");
+    bubble.className = `message ${role}`;
+    bubble.textContent = text;
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    chatBox.appendChild(row);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return row;
+  }
+
+  // ── ADD MESSAGE (new messages — also saves to state) ──────
+  function addMessage(text, role) {
+    currentMessages.push({ role, text }); // track in memory
+    const row = renderMessage(text, role);
+    if (role === "agent") speak(text);
+    return row;
+  }
+
+  function addBadge(text) {
+    const div = document.createElement("div");
+    div.className = "tool-badge";
+    div.textContent = text;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function addThinking() {
+    const row = document.createElement("div");
+    row.className = "thinking-row";
+
+    const avatar = document.createElement("div");
+    avatar.className = "avatar agent-avatar";
+    avatar.textContent = "🤖";
+
+    const bubble = document.createElement("div");
+    bubble.className = "thinking-bubble";
+    bubble.innerHTML = `<div class="dot"></div><div class="dot"></div><div class="dot"></div>`;
+
+    row.appendChild(avatar);
+    row.appendChild(bubble);
+    chatBox.appendChild(row);
+    chatBox.scrollTop = chatBox.scrollHeight;
+    return row;
+  }
+
+  // ── SEND MESSAGE ──────────────────────────────────────────
+  async function sendMessage() {
+    const message = userInput.value.trim();
+    if (!message && !attachedFile) return;
+
+    const thinking = addThinking();
+
+    if (attachedFile && attachedFile.type.startsWith("image/")) {
+      addMessage(message || "What's in this image?", "user");
+      userInput.value = "";
+      userInput.style.height = "auto";
+
+      const formData = new FormData();
+      formData.append("image", attachedFile);
+      formData.append("prompt", message || "Describe this image in detail.");
+      clearAttachment();
+
+      try {
+        const res = await fetch("/upload", { method: "POST", body: formData });
+        const data = await res.json();
+        thinking.remove();
+        addMessage(data.error ? "Error: " + data.error : data.reply, "agent");
+      } catch (e) {
+        thinking.remove();
+        addMessage("Connection error. Is the server running?", "agent");
+      }
+
+    } else if (attachedFile) {
+      const fileText = await attachedFile.text();
+      const combined = `[File: ${attachedFile.name}]\n${fileText}\n\n${message}`;
+      addMessage(`📄 ${attachedFile.name}${message ? " — " + message : ""}`, "user");
+      userInput.value = "";
+      userInput.style.height = "auto";
+      clearAttachment();
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: combined }),
+        });
+        const data = await res.json();
+        thinking.remove();
+        addMessage(data.error ? "Error: " + data.error : data.reply, "agent");
+      } catch (e) {
+        thinking.remove();
+        addMessage("Connection error. Is the server running?", "agent");
+      }
+
+    } else {
+      addMessage(message, "user");
+      userInput.value = "";
+      userInput.style.height = "auto";
+
+      try {
+        const res = await fetch("/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
+        const data = await res.json();
+        thinking.remove();
+        addMessage(data.error ? "Error: " + data.error : data.reply, "agent");
+      } catch (e) {
+        thinking.remove();
+        addMessage("Connection error. Is the server running?", "agent");
+      }
+    }
+  }
+
+  async function clearChat() {
+    await fetch("/clear", { method: "POST" });
+    chatBox.innerHTML = "";
+    currentMessages = [];
+    addBadge("Chat cleared");
+  }
+
+  async function clearMemory() {
+    await fetch("/clearmemory", { method: "POST" });
+    addBadge("Memory wiped");
+  }
+
+  async function showMemory() {
+    const panel = document.getElementById("memory-panel");
+    const list = document.getElementById("memory-list");
+    panel.classList.toggle("open");
+
+    if (panel.classList.contains("open")) {
+      const res = await fetch("/memory");
+      const data = await res.json();
+      list.innerHTML = data.facts.length === 0
+        ? "<li>No memories saved yet</li>"
+        : data.facts.map(f => `<li>${f}</li>`).join("");
+    }
+  }
+
+  // save chat automatically when user closes/refreshes the tab
+  window.addEventListener("beforeunload", () => {
+    if (currentMessages.length > 0) {
+      navigator.sendBeacon("/savechat", JSON.stringify({
+        id: currentChatId,
+        messages: currentMessages
+      }));
+    }
+  });
+
+  addMessage("Hello! I'm Atlas, your local AI agent. How can I help you today?", "agent");
+</script>
+</body>
+</html>
