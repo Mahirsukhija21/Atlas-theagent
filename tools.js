@@ -1,5 +1,7 @@
 const https = require("https");
 const http = require("http");
+const fs = require("fs");
+const path = require("path");
 
 const TOOLS = [
   {
@@ -34,6 +36,13 @@ const TOOLS = [
     name: "get_time",
     description: "Returns the current date and time. Use this when the user asks what time or date it is.",
     parameters: {}
+  },
+  {
+    name: "read_file",
+    description: "Reads any file from the user's machine and returns its contents. Use this when the user asks you to read, analyze, summarize, or answer questions about a file. Supports .txt, .js, .json, .html, .css, .md, .py, .csv, .env, .ts, .xml, .yaml, .yml and more.",
+    parameters: {
+      filepath: "The full or relative file path e.g. 'C:/Users/MAHIR/Documents/my-agent/memory.json' or './memory.json'"
+    }
   }
 ];
 
@@ -64,6 +73,13 @@ function stripHtml(html) {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+// Supported text-readable file extensions
+const TEXT_EXTENSIONS = [
+  ".txt", ".js", ".json", ".html", ".css", ".md", ".py", ".ts",
+  ".csv", ".env", ".xml", ".yaml", ".yml", ".sh", ".bat", ".ini",
+  ".config", ".toml", ".jsx", ".tsx", ".sql", ".log", ".gitignore"
+];
 
 async function runTool(name, params) {
   if (name === "calculator") {
@@ -144,6 +160,49 @@ async function runTool(name, params) {
       return `Wikipedia: ${data.title}\n\n${summary}\n\nSource: ${url}`;
     } catch (e) {
       return `Wikipedia search failed: ${e.message}`;
+    }
+  }
+
+  if (name === "read_file") {
+    try {
+      const filepath = params.filepath || params.path || params.file || Object.values(params)[0] || "";
+      if (!filepath) return "No file path provided.";
+
+      // Resolve the path
+      const resolvedPath = path.resolve(filepath);
+
+      // Check if file exists
+      if (!fs.existsSync(resolvedPath)) {
+        return `File not found: ${resolvedPath}. Make sure the path is correct.`;
+      }
+
+      const ext = path.extname(resolvedPath).toLowerCase();
+      const stats = fs.statSync(resolvedPath);
+
+      // Block files larger than 1MB to avoid flooding context
+      if (stats.size > 1024 * 1024) {
+        return `File is too large (${(stats.size / 1024).toFixed(1)} KB). Please use a smaller file or specify which part you want.`;
+      }
+
+      // Check if it's a readable text file
+      if (ext && !TEXT_EXTENSIONS.includes(ext)) {
+        return `Unsupported file type "${ext}". I can read: ${TEXT_EXTENSIONS.join(", ")}`;
+      }
+
+      const content = fs.readFileSync(resolvedPath, "utf8");
+
+      if (!content.trim()) {
+        return `The file "${path.basename(resolvedPath)}" is empty.`;
+      }
+
+      // Limit to 3000 chars to keep context manageable
+      const preview = content.length > 3000
+        ? content.slice(0, 3000) + `\n\n... [truncated — file has ${content.length} characters total]`
+        : content;
+
+      return `File: ${path.basename(resolvedPath)}\nPath: ${resolvedPath}\nSize: ${(stats.size / 1024).toFixed(1)} KB\n\n--- Content ---\n${preview}`;
+    } catch (e) {
+      return `Failed to read file: ${e.message}`;
     }
   }
 
