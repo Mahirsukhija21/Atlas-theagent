@@ -8,17 +8,28 @@ const { clearMemory, getFacts } = require("./memory.js");
 
 const app = express();
 const PORT = 4000;
-const upload = multer({ dest: "uploads/" });
-const CHATS_DIR = path.join(__dirname, "chats");
-
-// create chats folder if it doesn't exist
-if (!fs.existsSync(CHATS_DIR)) fs.mkdirSync(CHATS_DIR);
+const CHATS_FILE = path.join(__dirname, "chats.json");
+const upload = multer({ storage: multer.memoryStorage() });
 
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// ── CHAT ──────────────────────────────────────────────────────
+// ── HELPERS ───────────────────────────────────────────────
+function loadChats() {
+  try {
+    if (fs.existsSync(CHATS_FILE)) {
+      return JSON.parse(fs.readFileSync(CHATS_FILE, "utf8"));
+    }
+  } catch (e) {}
+  return [];
+}
+
+function saveChats(chats) {
+  fs.writeFileSync(CHATS_FILE, JSON.stringify(chats, null, 2), "utf8");
+}
+
+// ── CHAT ENDPOINTS ────────────────────────────────────────
 app.post("/chat", async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: "No message provided" });
@@ -30,110 +41,37 @@ app.post("/chat", async (req, res) => {
   }
 });
 
-// ── IMAGE UPLOAD ──────────────────────────────────────────────
-app.post("/upload", upload.single("image"), async (req, res) => {
+app.post("/clear", (req, res) => {
+  clearHistory();
+  res.json({ success: true });
+});
+
+app.post("/retry", async (req, res) => {
+  const { message } = req.body;
+  if (!message) return res.status(400).json({ error: "No message provided" });
   try {
-    const imagePath = req.file.path;
-    const prompt = req.body.prompt || "Describe this image in detail.";
-    const imageData = fs.readFileSync(imagePath).toString("base64");
+    // Remove last agent reply from history so it regenerates cleanly
+    clearHistory();
+    const reply = await chat(message);
+    res.json({ reply, agent: AGENT_NAME });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
-    const ollamaRes = await fetch("http://localhost:11434/api/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "moondream",
-        prompt: prompt,
-        images: [imageData],
-        stream: false
-      })
-    });
-
-    const ollamaData = await ollamaRes.json();
-    fs.unlinkSync(imagePath);
-
-    const description = ollamaData.response;
-    const reply = await chat(
-      `The user sent an image. A vision AI already analyzed it and produced this description:\n\n"${description}"\n\nUsing ONLY this description, respond to the user's request: "${prompt}". Do NOT say you cannot see images.`
-    );
-
+app.post("/rewind", async (req, res) => {
+  const { message, history } = req.body;
+  if (!message) return res.status(400).json({ error: "No message provided" });
+  try {
+    clearHistory();
+    // Rebuild history up to the rewind point
+    const { rebuildHistory } = require("./agent.js");
+    rebuildHistory(history || []);
+    const reply = await chat(message);
     res.json({ reply });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
-});
-
-// ── SAVE CHAT ─────────────────────────────────────────────────
-// receives the full chat messages array from the browser and saves to a file
-app.post("/savechat", (req, res) => {
-  try {
-    const { id, messages } = req.body;
-    if (!messages || messages.length === 0) return res.json({ success: false });
-
-    const title = messages[0].text.slice(0, 60); // first message as title
-    const chat_data = {
-      id,
-      title,
-      createdAt: new Date().toISOString(),
-      messages
-    };
-
-    fs.writeFileSync(
-      path.join(CHATS_DIR, `${id}.json`),
-      JSON.stringify(chat_data, null, 2)
-    );
-
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ── LIST CHATS ────────────────────────────────────────────────
-// reads all json files from chats/ and returns them sorted by newest first
-app.get("/chats", (req, res) => {
-  try {
-    const files = fs.readdirSync(CHATS_DIR).filter(f => f.endsWith(".json"));
-    const chats = files.map(file => {
-      const data = JSON.parse(fs.readFileSync(path.join(CHATS_DIR, file)));
-      return { id: data.id, title: data.title, createdAt: data.createdAt };
-    });
-
-    // newest first
-    chats.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-    res.json({ chats });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ── LOAD CHAT ─────────────────────────────────────────────────
-// returns a single chat's full messages by id
-app.get("/chats/:id", (req, res) => {
-  try {
-    const filePath = path.join(CHATS_DIR, `${req.params.id}.json`);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Chat not found" });
-    const data = JSON.parse(fs.readFileSync(filePath));
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ── DELETE CHAT ───────────────────────────────────────────────
-app.delete("/chats/:id", (req, res) => {
-  try {
-    const filePath = path.join(CHATS_DIR, `${req.params.id}.json`);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    res.json({ success: true });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ── CLEAR / MEMORY ────────────────────────────────────────────
-app.post("/clear", (req, res) => {
-  clearHistory();
-  res.json({ success: true });
 });
 
 app.post("/clearmemory", (req, res) => {
@@ -145,7 +83,86 @@ app.get("/memory", (req, res) => {
   res.json({ facts: getFacts() });
 });
 
+// ── HISTORY ENDPOINTS ─────────────────────────────────────
+app.get("/chats", (req, res) => {
+  const chats = loadChats();
+  const summary = chats.map(c => ({
+    id: c.id,
+    title: c.title,
+    createdAt: c.createdAt
+  })).reverse();
+  res.json({ chats: summary });
+});
+
+app.get("/chats/:id", (req, res) => {
+  const chats = loadChats();
+  const chat = chats.find(c => c.id === req.params.id);
+  if (!chat) return res.status(404).json({ error: "Chat not found" });
+  res.json(chat);
+});
+
+app.delete("/chats/:id", (req, res) => {
+  let chats = loadChats();
+  chats = chats.filter(c => c.id !== req.params.id);
+  saveChats(chats);
+  res.json({ success: true });
+});
+
+app.post("/savechat", (req, res) => {
+  const { id, messages } = req.body;
+  if (!id || !messages || messages.length === 0) return res.json({ success: false });
+
+  let chats = loadChats();
+  const existing = chats.findIndex(c => c.id === id);
+  const firstUserMsg = messages.find(m => m.role === "user");
+  const title = firstUserMsg
+    ? firstUserMsg.text.slice(0, 40) + (firstUserMsg.text.length > 40 ? "..." : "")
+    : "New chat";
+
+  if (existing !== -1) {
+    chats[existing].messages = messages;
+    chats[existing].title = title;
+  } else {
+    chats.push({ id, title, messages, createdAt: new Date().toISOString() });
+  }
+
+  saveChats(chats);
+  res.json({ success: true });
+});
+
+// ── IMAGE UPLOAD ──────────────────────────────────────────
+app.post("/upload", upload.single("image"), async (req, res) => {
+  try {
+    const prompt = req.body.prompt || "Describe this image in detail.";
+    const imageBase64 = req.file.buffer.toString("base64");
+    const mimeType = req.file.mimetype;
+
+    const response = await fetch("http://localhost:11434/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "llava",
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+            images: [imageBase64]
+          }
+        ],
+        stream: false
+      })
+    });
+
+    if (!response.ok) throw new Error("LLaVA model not available. Run: ollama pull llava");
+    const data = await response.json();
+    res.json({ reply: data.message.content });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── START ─────────────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`\n🤖  ${AGENT_NAME} server running!`);
+  console.log(`\n🤖  ${AGENT_NAME} is running!`);
   console.log(`    Open http://localhost:${PORT} in your browser\n`);
 });

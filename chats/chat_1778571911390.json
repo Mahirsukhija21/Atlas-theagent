@@ -1,0 +1,23 @@
+{
+  "id": "chat_1778571911390",
+  "title": "what's uppppp, dude",
+  "createdAt": "2026-05-12T07:45:36.830Z",
+  "messages": [
+    {
+      "role": "user",
+      "text": "what's uppppp, dude"
+    },
+    {
+      "role": "agent",
+      "text": "Error: fetch failed"
+    },
+    {
+      "role": "user",
+      "text": "hey there"
+    },
+    {
+      "role": "agent",
+      "text": "Error: fetch failed"
+    }
+  ]
+}
