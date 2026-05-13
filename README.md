@@ -1,157 +1,113 @@
-# Atlas AI Chatbot
+# Atlas — Cloud Version
 
-An intelligent AI-powered chatbot built with a modern dark-themed interface, real-time conversations, voice support, memory features, and roleplay capabilities — powered by Ollama.
-
----
-
-## ✨ Features
-
-* 🤖 AI Chat Assistant
-* 🎭 Roleplay Conversations
-* 🧠 Memory System
-* 🎤 Voice Interaction
-* 🕘 Chat History
-* 🧹 Clear Chat Option
-* ⚡ Fast Local AI Responses
-* 🌙 Modern Dark UI
-* 🔒 Local & Private AI Support
-* 🦙 Powered by Ollama
+> A smart, emotionally aware AI companion powered by Groq & LLaMA 3.3 70B — accessible from anywhere on the web.
 
 ---
 
-## 📸 Preview
+## What is Atlas?
 
-<img width="1598" height="850" alt="image" src="https://github.com/user-attachments/assets/f1ed1d10-6a09-46e1-8041-f619ef0ff10e" />
+Atlas is a personal AI agent that runs in the cloud. It can search the web, do math, look up Wikipedia, remember things about you, and hold natural conversations — all from a clean, minimal interface.
 
----
-
-## 🛠️ Tech Stack
-
-* Frontend: HTML, CSS, JavaScript
-* Backend: Node.js
-* AI Runtime: Ollama
-* Styling: Custom Dark UI
-* API Communication: REST APIs / Fetch
+This is the **cloud branch** of Atlas, powered by [Groq](https://groq.com) for fast, free inference. For the local version (runs on your machine via Ollama), see the `main` branch.
 
 ---
 
-## 🚀 Installation
+## Features
 
-Clone the repository:
+- 🧠 **LLaMA 3.3 70B** via Groq — fast, smart, free
+- 🔍 **Web search** — searches DuckDuckGo for current info
+- 📖 **Wikipedia** — instant knowledge lookup
+- 🧮 **Calculator** — evaluates any math expression
+- 💾 **Memory** — remembers facts about you across conversations
+- 🕐 **Time awareness** — knows the current date and time
+- 💬 **Chat history** — saves and loads past conversations
+- ↺ **Retry** — regenerate any response
+- ↩ **Rewind** — jump back to any point in the conversation
+- 🔊 **Voice** — text-to-speech for agent responses
+- 📎 **File & image support** — attach files or images to your messages
+
+---
+
+## Tech Stack
+
+| Layer    | Technology          |
+|----------|---------------------|
+| Frontend | HTML, CSS, JS       |
+| Backend  | Node.js, Express    |
+| AI       | Groq API (LLaMA 3.3 70B) |
+| Hosting  | Railway             |
+
+---
+
+## Getting Started
+
+### 1. Clone the repo (cloud branch)
 
 ```bash
-git clone https://github.com/Mahirsukhija21/Atlas-theagent.git
-```
-
-Go into the project folder:
-
-```bash
+git clone -b cloud https://github.com/Mahirsukhija21/Atlas-theagent.git
 cd Atlas-theagent
 ```
 
-Install dependencies:
+### 2. Install dependencies
 
 ```bash
 npm install
 ```
 
-Start the server:
+### 3. Set up your `.env`
+
+Create a `.env` file in the root:
+
+```env
+GROQ_API_KEY=your_groq_api_key_here
+MODEL=llama-3.3-70b-versatile
+AGENT_NAME=Atlas
+```
+
+Get a free Groq API key at [console.groq.com](https://console.groq.com)
+
+### 4. Run locally
 
 ```bash
-npm start
+node server.js
 ```
 
-Open in browser:
-
-```text
-http://localhost:4000
-```
+Open `http://localhost:4000` in your browser.
 
 ---
 
-## 🦙 Ollama Setup
+## Deployment (Railway)
 
-Install Ollama from:
-
-[Ollama Official Website]: (https://ollama.com?utm_source=chatgpt.com)
-
-Run a model locally:
-
-```bash
-ollama run llama3
-```
-
-Make sure Ollama is running before starting Atlas.
+1. Go to [railway.app](https://railway.app) and create a new project
+2. Connect your GitHub repo and select the `cloud` branch
+3. Add your environment variables in Railway's dashboard
+4. Deploy — Railway will give you a public URL automatically
 
 ---
 
-## 🎭 Roleplay Mode
+## Environment Variables
 
-Atlas supports immersive roleplay conversations.
-
-Example prompts:
-
-* “Act like a cyberpunk hacker.”
-* “Roleplay as a medieval wizard.”
-* “Pretend you are Iron Man’s AI assistant.”
-* “Be my coding mentor.”
+| Variable       | Description                        | Required |
+|----------------|------------------------------------|----------|
+| `GROQ_API_KEY` | Your Groq API key                  | ✅       |
+| `MODEL`        | Groq model to use                  | ✅       |
+| `AGENT_NAME`   | Name of the agent (default: Atlas) | ❌       |
 
 ---
 
-## 📂 Project Structure
+## Branches
 
-```bash
-project/
-│
-├── public/
-├── server/
-├── node_modules/
-├── package.json
-├── .gitignore
-└── README.md
-```
+| Branch  | Description                              |
+|---------|------------------------------------------|
+| `main`  | Local version — runs via Ollama          |
+| `cloud` | This branch — runs via Groq API          |
 
 ---
 
-## 🔐 Privacy
+## License
 
-Atlas can run completely locally using Ollama, meaning:
-
-* No cloud dependency required
-* Better privacy
-* Faster local responses
-* Offline AI support
+MIT — free to use, modify, and deploy.
 
 ---
 
-## 🌟 Future Improvements
-
-* User Authentication
-* Multiple AI Models
-* Mobile Responsive Design
-* Image Generation
-* File Upload Support
-* AI Personalities
-* Theme Customization
-
----
-
-## 🤝 Contributing
-
-Pull requests are welcome.
-For major changes, please open an issue first.
-
----
-
-## 📄 License
-
-MIT License
-
----
-
-## 👨‍💻 Developer
-
-Made with ❤️ by MAHIR SUKHIJA
-
-GitHub: [GitHub Profile]: (https://github.com/Mahirsukhija21)
-
+*Built by [Mahirsukhija21](https://github.com/Mahirsukhija21)*
