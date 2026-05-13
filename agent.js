@@ -10,9 +10,10 @@ const AGENT_NAME = process.env.AGENT_NAME || "Atlas";
 
 function buildSystemPrompt() {
   const facts = getFacts();
-  const memorySection = facts.length > 0
-    ? `\nThings you remember about the user:\n${facts.map(f => `- ${f}`).join("\n")}`
-    : "";
+  const memorySection =
+    facts.length > 0
+      ? `\nThings you remember about the user:\n${facts.map((f) => `- ${f}`).join("\n")}`
+      : "";
 
   return `You are Atlas, a highly intelligent and emotionally aware AI companion running locally on the user's machine.
 
@@ -45,7 +46,7 @@ function buildSystemPrompt() {
 - For things you don't know → admit it honestly and search
 
 ## Your capabilities
-${TOOLS.map(t => `- ${t.name}: ${t.description}`).join("\n")}
+${TOOLS.map((t) => `- ${t.name}: ${t.description}`).join("\n")}
 
 ## Tool usage rules
 When you need a tool, reply ONLY with this exact JSON — nothing else before or after:
@@ -54,12 +55,30 @@ When you need a tool, reply ONLY with this exact JSON — nothing else before or
 When saving important user facts to memory:
 {"tool": "save_memory", "params": {"fact": "the fact"}}
 
-Only save truly meaningful facts — name, goals, preferences, important life details. Never save casual chat.
+IMPORTANT MEMORY RULES:
+- Only save truly meaningful facts — name, goals, preferences, important life details
+- Never save casual chat, temporary statements, or uncertain info
+- If you have nothing meaningful to save, do NOT call save_memory at all
+- Never pass "null", "undefined", or empty strings as a fact
 
 After getting a tool result, respond naturally as if you just looked it up yourself. Don't say "The tool returned..." just speak naturally.
 
 When you have the answer, reply in plain conversational text.
 ${memorySection}`;
+}
+
+// Validate a fact before saving it to memory
+function isValidFact(fact) {
+  if (!fact) return false;
+  if (typeof fact !== "string") return false;
+  const trimmed = fact.trim().toLowerCase();
+  if (trimmed === "") return false;
+  if (trimmed === "null") return false;
+  if (trimmed === "undefined") return false;
+  if (trimmed === "none") return false;
+  if (trimmed === "n/a") return false;
+  if (fact.trim().length < 3) return false;
+  return true;
 }
 
 let history = [];
@@ -72,7 +91,10 @@ async function chat(userMessage) {
 
   while (true) {
     if (toolCallCount >= MAX_TOOL_CALLS) {
-      history.push({ role: "user", content: "You have used too many tool calls. Please answer with what you know." });
+      history.push({
+        role: "user",
+        content: "You have used too many tool calls. Please answer with what you know.",
+      });
     }
 
     const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
@@ -95,23 +117,35 @@ async function chat(userMessage) {
     const data = await response.json();
     let reply = data.message.content.trim();
 
-// Extract JSON if agent mixed text with a tool call
-const jsonMatch = reply.match(/\{[\s\S]*"tool"[\s\S]*\}/);
-if (jsonMatch) {
-  reply = jsonMatch[0];
-}
+    // Extract JSON if agent mixed text with a tool call
+    const jsonMatch = reply.match(/\{[\s\S]*"tool"[\s\S]*\}/);
+    if (jsonMatch) {
+      reply = jsonMatch[0];
+    }
+
     try {
       const parsed = JSON.parse(reply);
 
+      // Handle memory saving
       if (parsed.tool === "save_memory") {
-        const fact = parsed.params.fact;
-        addFact(fact);
-        console.log(`\n[Memory saved: ${fact}]\n`);
+        const fact = parsed.params?.fact;
+
+        if (!isValidFact(fact)) {
+          // Silently skip invalid facts — don't save, don't log
+          console.log(`\n[Memory skipped: invalid or empty fact "${fact}"]\n`);
+          history.push({ role: "assistant", content: reply });
+          history.push({ role: "user", content: `Memory save skipped — fact was invalid.` });
+          continue;
+        }
+
+        addFact(fact.trim());
+        console.log(`\n[Memory saved: ${fact.trim()}]\n`);
         history.push({ role: "assistant", content: reply });
-        history.push({ role: "user", content: `Memory saved: "${fact}"` });
+        history.push({ role: "user", content: `Memory saved: "${fact.trim()}"` });
         continue;
       }
 
+      // Handle other tools
       if (parsed.tool) {
         toolCallCount++;
         console.log(`\n[Using tool: ${parsed.tool}]`);
@@ -122,7 +156,7 @@ if (jsonMatch) {
         continue;
       }
     } catch (e) {
-      // Not JSON — normal reply
+      // Not JSON — normal conversational reply, fall through
     }
 
     history.push({ role: "assistant", content: reply });
@@ -136,10 +170,10 @@ function clearHistory() {
 
 function rebuildHistory(messages) {
   history = [];
-  messages.forEach(m => {
+  messages.forEach((m) => {
     history.push({
       role: m.role === "agent" ? "assistant" : "user",
-      content: m.text
+      content: m.text,
     });
   });
 }
