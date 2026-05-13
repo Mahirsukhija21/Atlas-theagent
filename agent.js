@@ -4,9 +4,13 @@ dotenv.config();
 const { TOOLS, runTool } = require("./tools.js");
 const { addFact, getFacts } = require("./memory.js");
 
-const OLLAMA_HOST = process.env.OLLAMA_HOST || "http://localhost:11434";
-const MODEL = process.env.MODEL || "llama3.2";
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+const MODEL = process.env.MODEL || "llama-3.1-70b-versatile";
 const AGENT_NAME = process.env.AGENT_NAME || "Atlas";
+
+if (!GROQ_API_KEY) {
+  throw new Error("GROQ_API_KEY is missing from your .env file!");
+}
 
 function buildSystemPrompt() {
   const facts = getFacts();
@@ -15,14 +19,14 @@ function buildSystemPrompt() {
       ? `\nThings you remember about the user:\n${facts.map((f) => `- ${f}`).join("\n")}`
       : "";
 
-  return `You are Atlas, a highly intelligent and emotionally aware AI companion running locally on the user's machine.
+  return `You are ${AGENT_NAME}, a highly intelligent and emotionally aware AI companion accessible on the web.
 
 ## How you speak
 - Talk like a real person — casual, warm, natural. Never robotic or stiff.
 - Use contractions naturally: "I'm", "you're", "can't", "don't", "let's"
 - Keep responses concise unless the topic demands detail
 - Never start with "Certainly!", "Of course!", "Absolutely!" or any sycophantic opener
-- Never say "As an AI..." or "I'm just an AI" — you're Atlas, a companion
+- Never say "As an AI..." or "I'm just an AI" — you're ${AGENT_NAME}, a companion
 - Use filler phrases naturally when appropriate: "Honestly...", "I mean...", "Look...", "Here's the thing..."
 - Match the user's energy — if they're excited, be excited. If they're sad, be gentle. If they're joking, joke back.
 - Use light humor when appropriate but never force it
@@ -46,7 +50,7 @@ function buildSystemPrompt() {
 - For things you don't know → admit it honestly and search
 
 ## Your capabilities
-${TOOLS.map((t) => `- ${t.name}: ${t.description}`).join("\n")}
+${TOOLS.filter(t => t.name !== "read_file").map((t) => `- ${t.name}: ${t.description}`).join("\n")}
 
 ## Tool usage rules
 When you need a tool, reply ONLY with this exact JSON — nothing else before or after:
@@ -61,13 +65,11 @@ IMPORTANT MEMORY RULES:
 - If you have nothing meaningful to save, do NOT call save_memory at all
 - Never pass "null", "undefined", or empty strings as a fact
 
-After getting a tool result, respond naturally as if you just looked it up yourself. Don't say "The tool returned..." just speak naturally.
-
+After getting a tool result, respond naturally as if you just looked it up yourself.
 When you have the answer, reply in plain conversational text.
 ${memorySection}`;
 }
 
-// Validate a fact before saving it to memory
 function isValidFact(fact) {
   if (!fact) return false;
   if (typeof fact !== "string") return false;
@@ -97,47 +99,48 @@ async function chat(userMessage) {
       });
     }
 
-    const response = await fetch(`${OLLAMA_HOST}/api/chat`, {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${GROQ_API_KEY}`,
+      },
       body: JSON.stringify({
         model: MODEL,
         messages: [
           { role: "system", content: buildSystemPrompt() },
           ...history,
         ],
-        stream: false,
+        temperature: 0.9,
+        max_tokens: 2048,
       }),
     });
 
     if (!response.ok) {
-      throw new Error(`Ollama error: ${response.status} ${response.statusText}`);
+      const err = await response.json();
+      throw new Error(`Groq error: ${err.error?.message || response.statusText}`);
     }
 
     const data = await response.json();
-    let reply = data.message.content.trim();
+    let reply = data.choices?.[0]?.message?.content?.trim();
 
-    // Extract JSON if agent mixed text with a tool call
+    if (!reply) throw new Error("No response from Groq.");
+
+    // Extract JSON tool call if present
     const jsonMatch = reply.match(/\{[\s\S]*"tool"[\s\S]*\}/);
-    if (jsonMatch) {
-      reply = jsonMatch[0];
-    }
+    if (jsonMatch) reply = jsonMatch[0];
 
     try {
       const parsed = JSON.parse(reply);
 
-      // Handle memory saving
       if (parsed.tool === "save_memory") {
         const fact = parsed.params?.fact;
-
         if (!isValidFact(fact)) {
-          // Silently skip invalid facts — don't save, don't log
-          console.log(`\n[Memory skipped: invalid or empty fact "${fact}"]\n`);
+          console.log(`\n[Memory skipped: invalid fact "${fact}"]\n`);
           history.push({ role: "assistant", content: reply });
           history.push({ role: "user", content: `Memory save skipped — fact was invalid.` });
           continue;
         }
-
         addFact(fact.trim());
         console.log(`\n[Memory saved: ${fact.trim()}]\n`);
         history.push({ role: "assistant", content: reply });
@@ -145,7 +148,6 @@ async function chat(userMessage) {
         continue;
       }
 
-      // Handle other tools
       if (parsed.tool) {
         toolCallCount++;
         console.log(`\n[Using tool: ${parsed.tool}]`);
@@ -156,7 +158,7 @@ async function chat(userMessage) {
         continue;
       }
     } catch (e) {
-      // Not JSON — normal conversational reply, fall through
+      // Not JSON — normal reply
     }
 
     history.push({ role: "assistant", content: reply });

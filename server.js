@@ -3,11 +3,14 @@ const cors = require("cors");
 const path = require("path");
 const fs = require("fs");
 const multer = require("multer");
-const { chat, clearHistory, AGENT_NAME } = require("./agent.js");
+const dotenv = require("dotenv");
+dotenv.config();
+
+const { chat, clearHistory, rebuildHistory, AGENT_NAME } = require("./agent.js");
 const { clearMemory, getFacts } = require("./memory.js");
 
 const app = express();
-const PORT = 4000;
+const PORT = 5000;
 const CHATS_FILE = path.join(__dirname, "chats.json");
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -50,7 +53,6 @@ app.post("/retry", async (req, res) => {
   const { message } = req.body;
   if (!message) return res.status(400).json({ error: "No message provided" });
   try {
-    // Remove last agent reply from history so it regenerates cleanly
     clearHistory();
     const reply = await chat(message);
     res.json({ reply, agent: AGENT_NAME });
@@ -64,8 +66,6 @@ app.post("/rewind", async (req, res) => {
   if (!message) return res.status(400).json({ error: "No message provided" });
   try {
     clearHistory();
-    // Rebuild history up to the rewind point
-    const { rebuildHistory } = require("./agent.js");
     rebuildHistory(history || []);
     const reply = await chat(message);
     res.json({ reply });
@@ -135,20 +135,13 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   try {
     const prompt = req.body.prompt || "Describe this image in detail.";
     const imageBase64 = req.file.buffer.toString("base64");
-    const mimeType = req.file.mimetype;
 
     const response = await fetch("http://localhost:11434/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "llava",
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-            images: [imageBase64]
-          }
-        ],
+        messages: [{ role: "user", content: prompt, images: [imageBase64] }],
         stream: false
       })
     });
