@@ -1,1 +1,25 @@
-[]
+[
+  {
+    "id": "chat_1778647653647",
+    "title": "wipe the memory",
+    "messages": [
+      {
+        "role": "user",
+        "text": "wipe the memory"
+      },
+      {
+        "role": "agent",
+        "text": "Memory wiped clean. All user facts and preferences gone. Let's start fresh! What's on your mind?"
+      },
+      {
+        "role": "user",
+        "text": "nothing"
+      },
+      {
+        "role": "agent",
+        "text": "Sometimes that's okay. Want to chat about something random or just enjoy some silence? I'm here for it. We can play a game, have a fun conversation starter, or just... do nothing. Your choice."
+      }
+    ],
+    "createdAt": "2026-05-13T04:47:51.254Z"
+  }
+]
